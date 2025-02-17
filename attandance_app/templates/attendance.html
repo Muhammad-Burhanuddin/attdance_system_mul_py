@@ -41,7 +41,7 @@
             <th>Device IP</th>
           </tr>
         </thead>
-        <tbody id="attendanceTable">
+        <tbody id="attandance_app_attendancerecord">
           <tr>
             <td colspan="4" class="text-center">No records found</td>
           </tr>
@@ -70,7 +70,7 @@
         data: { ip: ip, port: port },
         dataType: "json",
         success: function(response) {
-          var tableBody = $('#attendanceTable');
+          var tableBody = $('#attandance_app_attendancerecord');
           tableBody.empty(); // Clear existing table rows
           if (response.records.length === 0) {
             tableBody.append('<tr><td colspan="4" class="text-center">No records found</td></tr>');

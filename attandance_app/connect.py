@@ -4,16 +4,14 @@ import sys
 import threading
 from pathlib import Path
 from datetime import datetime
-import requests
 from yaml import Loader, load
 from zk import ZK
 from zk.exception import ZKError, ZKErrorConnection, ZKNetworkError
 import django
-from django.db import transaction
+from django.utils.timezone import make_aware
 
 # Set the environment variable for Django settings
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'attandance_app_mul.settings')
-
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'attendance_app_mul.settings')
 # Initialize Django
 django.setup()
 from attandance_app.models import AttendanceRecord
@@ -58,18 +56,25 @@ class ZkConnect:
 
         try:
             logs = self.connection.get_attendance()
+            users = self.connection.get_users()  # Fetch users from the device
+            
+            # Create a dictionary mapping user_id -> user_name
+            user_map = {user.uid: user.name for user in users}
             if logs:
                 print("\nAttendance Logs:")
                 print("----------------")
                 for log in logs:
                     print(f"User ID: {log.user_id}, Timestamp: {log.timestamp}")
+                    user_name = user_map.get(log.uid, "Unknown")
 
                     # Create and save the AttendanceRecord
                     try:
+                        naive_datetime = log.timestamp.replace(tzinfo=None)
+                        aware_datetime = make_aware(naive_datetime)
                         attendance_record = AttendanceRecord(
                             employee_id=log.user_id,
-                            employee_name="Unknown",  # Or fetch from a user database
-                            date_time=log.timestamp,
+                            employee_name= user_name,  # Or fetch from a user database
+                            date_time=aware_datetime,
                             device_ip=self.host  # Store the device IP
                         )
                         attendance_record.save()
