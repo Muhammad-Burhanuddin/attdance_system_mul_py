@@ -4,11 +4,12 @@ import sys
 import threading
 from pathlib import Path
 from datetime import datetime
+import requests
 from yaml import Loader, load
 from zk import ZK
 from zk.exception import ZKError, ZKErrorConnection, ZKNetworkError
 import django
-
+from django.db import transaction
 
 # Set the environment variable for Django settings
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'attandance_app_mul.settings')
@@ -167,4 +168,3 @@ def init():
 
 if __name__ == "__main__":
     init()
-

@@ -37,8 +37,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'attandance_app', 
-    'attandance_app_mul' ,
+    'attandance_app',  # Your other app
+    'attandance_app_mul',  # Make sure this app is listed here
 ]
 
 
