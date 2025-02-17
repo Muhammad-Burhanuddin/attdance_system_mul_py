@@ -1,0 +1,11 @@
+devices:
+  - host: 192.168.12.37
+    port: 4370
+  - host: 192.168.12.240
+    port: 4370
+  - host: 192.168.12.247
+    port: 4370
+
+log:
+  filename: transactions 
+  split: true

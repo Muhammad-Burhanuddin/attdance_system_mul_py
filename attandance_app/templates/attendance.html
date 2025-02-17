@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Attendance System</title>
+  <!-- Bootstrap CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body class="bg-light">
+  <div class="container mt-5">
+    <h2 class="mb-4 text-center">Attendance System</h2>
+    <div class="row">
+      <div class="col-md-6">
+        <label for="deviceSelect" class="form-label">Select Device IP</label>
+        <select id="deviceSelect" class="form-select">
+          <option value="">-- Select Device --</option>
+          {% for device in devices %}
+            <option value="{{ device.host }}" data-port="{{ device.port }}">
+              {{ device.host }} (Port: {{ device.port }})
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-6">
+        <label for="port" class="form-label">Port</label>
+        <input type="text" id="port" class="form-control" placeholder="Port" readonly>
+      </div>
+    </div>
+    <button class="btn btn-primary mt-3" onclick="fetchAttendance()">Fetch Attendance</button>
+
+    <div class="mt-4">
+      <table class="table table-bordered">
+        <thead class="table-dark">
+          <tr>
+            <th>Employee ID</th>
+            <th>Employee Name</th>
+            <th>Date/Time</th>
+            <th>Device IP</th>
+          </tr>
+        </thead>
+        <tbody id="attendanceTable">
+          <tr>
+            <td colspan="4" class="text-center">No records found</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    // When a device is selected, fill the port field automatically
+    $('#deviceSelect').on('change', function(){
+      var port = $(this).find(':selected').data('port');
+      $('#port').val(port || '');
+    });
+
+    function fetchAttendance() {
+      var ip = $('#deviceSelect').val();
+      var port = $('#port').val();
+      if (!ip || !port) {
+        alert("Please select a device from the list.");
+        return;
+      }
+      $.ajax({
+        url: "/fetch_attendance/",
+        type: "GET",
+        data: { ip: ip, port: port },
+        dataType: "json",
+        success: function(response) {
+          var tableBody = $('#attendanceTable');
+          tableBody.empty(); // Clear existing table rows
+          if (response.records.length === 0) {
+            tableBody.append('<tr><td colspan="4" class="text-center">No records found</td></tr>');
+            return;
+          }
+          response.records.forEach(function(record) {
+            tableBody.append(
+              `<tr>
+                  <td>${record.employee_id}</td>
+                  <td>${record.employee_name}</td>
+                  <td>${record.date_time}</td>
+                  <td>${record.device_ip}</td>
+               </tr>`
+            );
+          });
+        },
+        error: function(xhr) {
+          alert("Error: " + (xhr.responseJSON && xhr.responseJSON.error ? xhr.responseJSON.error : "Unknown error"));
+        }
+      });
+    }
+  </script>
+</body>
+</html>
