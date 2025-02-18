@@ -5,6 +5,16 @@ devices:
     port: 4370
   - host: 192.168.12.247
     port: 4370
+  - host: 192.168.12.248
+    port: 4370
+  - host: 192.168.12.245
+    port: 4370
+  - host: 192.168.12.234
+    port: 4370
+  - host: 192.168.12.230
+    port: 4370 
+  - host: 192.168.12.231
+    port: 4370    
 
 log:
   filename: transactions 

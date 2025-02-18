@@ -36,10 +36,13 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
-    'django.contrib.staticfiles',
-    'attandance_app',  # Your other app
-    'attandance_app_mul',  # Make sure this app is listed here
+    'attandance_app', 
+    'attandance_app_mul',
+    "daphne",  # Move this line up
+    "channels",
+    'django.contrib.staticfiles',  # Make sure this comes after daphne
 ]
+
 
 
 MIDDLEWARE = [
@@ -71,7 +74,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'attandance_app_mul.wsgi.application'
-
+ASGI_APPLICATION = "attandance_app_mul.asgi.application"
 
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
@@ -124,3 +127,8 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer",  # Use Redis for production
+    },
+}

@@ -40,7 +40,7 @@ def fetch_attendance(request):
         zk.disconnect()
 
         # Fetch the latest attendance records from the database.
-        records = AttendanceRecord.objects.all().order_by("-date_time")[:50]
+        records = AttendanceRecord.objects.all().order_by("-date_time")
         data = [
             {
                 "employee_id": record.employee_id,
@@ -54,3 +54,7 @@ def fetch_attendance(request):
     except Exception as e:
         logging.error("Error fetching attendance: %s", e)
         return JsonResponse({"error": str(e)}, status=500)
+
+
+def real_time_attendance(request):
+    return render(request, "real_time_attendance.html")

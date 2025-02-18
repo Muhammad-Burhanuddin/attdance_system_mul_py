@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Real-Time Attendance</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <style>
+    #statusIndicator {
+      font-weight: bold;
+      color: green;
+    }
+
+    /* Styling for the loading indicator */
+    #loadingIndicator {
+      display: none; /* Hidden by default */
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 999;
+    }
+  </style>
+</head>
+<body class="bg-light">
+  <div class="container mt-5">
+    <h2 class="mb-4 text-center">Real-Time Attendance</h2>
+    
+    <!-- Status Indicator -->
+    <div id="statusIndicator" class="text-center mb-3">
+      <span>Receiving data...</span>
+    </div>
+
+    <!-- Table -->
+    <table class="table table-bordered">
+      <thead class="table-dark">
+        <tr>
+          <th>Employee ID</th>
+          <th>Employee Name</th>
+          <th>Date/Time</th>
+          <th>Device IP</th>
+        </tr>
+      </thead>
+      <tbody id="realTimeAttendanceBody">
+        <tr>
+          <td colspan="4" class="text-center">Waiting for real-time updates...</td>
+        </tr>
+      </tbody>
+    </table>
+    
+    <a href="/" class="btn btn-secondary">Back</a>
+  </div>
+
+  <!-- Circular Loading Indicator -->
+  <div id="loadingIndicator" class="text-center">
+    <div class="spinner-border text-primary" role="status">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+  </div>
+
+  <script>
+    const socket = new WebSocket("ws://" + window.location.host + "/ws/real_time_attendance/");
+
+    // WebSocket connection to handle incoming attendance updates
+    socket.onmessage = function(event) {
+        const data = JSON.parse(event.data);
+        const tableBody = document.getElementById("realTimeAttendanceBody");
+
+        // Create a new row and add it to the top of the table
+        const newRow = document.createElement("tr");
+
+        newRow.innerHTML = `
+          <td>${data.employee_id}</td>
+          <td>${data.employee_name}</td>
+          <td>${data.date_time}</td>
+          <td>${data.device_ip}</td>
+        `;
+
+        tableBody.prepend(newRow);
+    };
+
+    socket.onclose = function(event) {
+        console.log("WebSocket closed:", event);
+        document.getElementById("statusIndicator").innerHTML = "<span style='color: red;'>Connection lost. Reconnecting...</span>";
+    };
+
+    // Function to simulate fetching data and updating the table
+    function refreshAttendance() {
+      // Show loading indicator
+      document.getElementById("loadingIndicator").style.display = "block";
+
+      // Simulate an API call or some process to fetch new data (For demo purposes)
+      setTimeout(() => {
+        // Hide the loading indicator
+        document.getElementById("loadingIndicator").style.display = "none";
+
+        // Simulate the refresh process (replace this with actual data fetching logic)
+        console.log("Refreshing attendance data...");
+
+        // Update the table or perform any necessary actions here
+        document.getElementById("statusIndicator").innerHTML = "<span>Receiving data...</span>";
+      }, 2000); // Simulating a 2-second data fetching delay
+    }
+
+    // Automatically refresh the screen every 5 seconds
+    setInterval(function() {
+        refreshAttendance();
+    }, 5000); // 5 seconds interval
+
+  </script>
+</body>
+</html>

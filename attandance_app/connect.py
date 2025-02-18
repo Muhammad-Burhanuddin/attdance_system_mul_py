@@ -12,19 +12,18 @@ from django.utils.timezone import make_aware
 
 # Set the environment variable for Django settings
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'attendance_app_mul.settings')
-# Initialize Django
 django.setup()
-from attandance_app.models import AttendanceRecord
 
+from attandance_app.models import AttendanceRecord
 
 class ZkConnect:
     def __init__(self, host, port, endpoint=None, transmission=False):
         """
-        Connect to a ZK Teco device and fetch attendance log data.
-        
+        Connect to a ZK Teco device and fetch real-time attendance data.
+
         :param host: The IP address of the ZK Teco device
         :param port: The port of the device, usually 4370
-        :param endpoint: The API endpoint of an external service (optional)
+        :param endpoint: Optional API endpoint
         :param transmission: Toggle real-time data transmission, False by default
         """
         self.host = host
@@ -35,7 +34,7 @@ class ZkConnect:
         self._connect()
 
     def _connect(self, reconnect=False):
-        """Attempt to establish a connection to a ZK Teco device."""
+        """Attempt to establish a connection to the ZK Teco device."""
         try:
             zk = ZK(ip=self.host, port=self.port, verbose=True)
             self.connection = zk.connect()
@@ -57,23 +56,23 @@ class ZkConnect:
         try:
             logs = self.connection.get_attendance()
             users = self.connection.get_users()  # Fetch users from the device
-            
+
             # Create a dictionary mapping user_id -> user_name
             user_map = {user.uid: user.name for user in users}
+
             if logs:
                 print("\nAttendance Logs:")
                 print("----------------")
                 for log in logs:
                     print(f"User ID: {log.user_id}, Timestamp: {log.timestamp}")
-                    user_name = user_map.get(log.uid, "Unknown")
+                    user_name = user_map.get(log.user_id, "Unknown")
 
-                    # Create and save the AttendanceRecord
                     try:
                         naive_datetime = log.timestamp.replace(tzinfo=None)
                         aware_datetime = make_aware(naive_datetime)
                         attendance_record = AttendanceRecord(
                             employee_id=log.user_id,
-                            employee_name= user_name,  # Or fetch from a user database
+                            employee_name=user_name,  # Or fetch from a user database
                             date_time=aware_datetime,
                             device_ip=self.host  # Store the device IP
                         )
@@ -88,6 +87,42 @@ class ZkConnect:
         except Exception as error:
             logging.error(f"Error fetching attendance logs: {error}")
             raise
+
+    def live_attendance(self):
+        """Capture real-time attendance logs."""
+        if not self.connection:
+            raise ZKErrorConnection('Connection is not established!')
+
+        def handle_real_time_attendance(event):
+            """Process a real-time attendance event."""
+            try:
+                user_id = event.user_id
+                timestamp = event.timestamp
+                print(f"[REAL-TIME] User {user_id} checked in at {timestamp}")
+
+                # Save real-time attendance to the database
+                naive_datetime = timestamp.replace(tzinfo=None)
+                aware_datetime = make_aware(naive_datetime)
+                
+                attendance_record = AttendanceRecord(
+                    employee_id=user_id,
+                    employee_name="Unknown",  # If user details are unavailable
+                    date_time=aware_datetime,
+                    device_ip=self.host
+                )
+                attendance_record.save()
+                print(f"Real-time attendance saved for User {user_id} at {timestamp}")
+
+            except Exception as e:
+                logging.error(f"Error saving real-time attendance: {e}")
+
+        try:
+            print("Listening for real-time attendance events...")
+            self.connection.live_capture(callback=handle_real_time_attendance)
+        except Exception as error:
+            logging.error(f"Real-time attendance error: {error}")
+            raise
+
     def disconnect(self):
         """Disconnect from the device."""
         if self.connection:
@@ -135,8 +170,10 @@ def run_device(device):
     """Run a ZK Teco device connection in a separate thread."""
     try:
         zk = ZkConnect(host=device['host'], port=device['port'])
-        zk.fetch_attendance_logs()
-        zk.disconnect()
+        
+        # Start real-time attendance monitoring
+        zk.live_attendance()
+        
     except Exception as error:
         logging.error(f"Error with device {device['host']}: {error}")
 
