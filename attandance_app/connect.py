@@ -48,6 +48,17 @@ class ZkConnect:
             logging.error(f'Unexpected error ({self.host}): {error}')
             raise
 
+    def _send_connection_status(self, status):
+        """Send connection status to the frontend via WebSocket."""
+        if self.channel_layer:
+            self.channel_layer.group_send(
+                "attendance_status", 
+                {
+                    "type": "update_connection_status",
+                    "host": self.host,
+                    "status": status
+                }
+            )
     def fetch_attendance_logs(self):
         """Fetch all attendance logs and save them to the database."""
         if not self.connection:
@@ -123,6 +134,16 @@ class ZkConnect:
             logging.error(f"Real-time attendance error: {error}")
             raise
 
+    def _send_real_time_data(self, data):
+        """Send real-time attendance data to the frontend via WebSocket."""
+        if self.channel_layer:
+            self.channel_layer.group_send(
+                "attendance_data",
+                {
+                    "type": "update_attendance_data",
+                    "data": data
+                }
+            )
     def disconnect(self):
         """Disconnect from the device."""
         if self.connection:

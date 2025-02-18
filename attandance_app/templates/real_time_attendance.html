@@ -13,12 +13,20 @@
 
     /* Styling for the loading indicator */
     #loadingIndicator {
-      display: none; /* Hidden by default */
+      display: none;
       position: fixed;
       bottom: 20px;
       left: 50%;
       transform: translateX(-50%);
       z-index: 999;
+    }
+
+    /* Device connection status section */
+    .device-status {
+      margin-top: 20px;
+    }
+    .device-status span {
+      font-weight: bold;
     }
   </style>
 </head>
@@ -29,6 +37,12 @@
     <!-- Status Indicator -->
     <div id="statusIndicator" class="text-center mb-3">
       <span>Receiving data...</span>
+    </div>
+
+    <!-- Device Connection Status -->
+    <div id="deviceStatus" class="device-status">
+      <h5>Device Connection Status:</h5>
+      <ul id="deviceStatusList"></ul>
     </div>
 
     <!-- Table -->
@@ -61,12 +75,34 @@
   <script>
     const socket = new WebSocket("ws://" + window.location.host + "/ws/real_time_attendance/");
 
-    // WebSocket connection to handle incoming attendance updates
+    // WebSocket connection for status updates and real-time attendance
     socket.onmessage = function(event) {
-        const data = JSON.parse(event.data);
-        const tableBody = document.getElementById("realTimeAttendanceBody");
+        const message = JSON.parse(event.data);
 
-        // Create a new row and add it to the top of the table
+        if (message.type === "update_connection_status") {
+            updateConnectionStatus(message.host, message.status);
+        }
+
+        if (message.type === "update_attendance_data") {
+            updateAttendanceTable(message.data);
+        }
+    };
+
+    function updateConnectionStatus(host, status) {
+        const statusList = document.getElementById("deviceStatusList");
+        let statusItem = document.getElementById(`device-${host}`);
+
+        if (!statusItem) {
+            statusItem = document.createElement("li");
+            statusItem.id = `device-${host}`;
+            statusList.appendChild(statusItem);
+        }
+
+        statusItem.innerHTML = `${host}: <span style="color: ${status === 'connected' ? 'green' : 'red'};">${status}</span>`;
+    }
+
+    function updateAttendanceTable(data) {
+        const tableBody = document.getElementById("realTimeAttendanceBody");
         const newRow = document.createElement("tr");
 
         newRow.innerHTML = `
@@ -75,38 +111,25 @@
           <td>${data.date_time}</td>
           <td>${data.device_ip}</td>
         `;
-
         tableBody.prepend(newRow);
-    };
+    }
 
     socket.onclose = function(event) {
         console.log("WebSocket closed:", event);
         document.getElementById("statusIndicator").innerHTML = "<span style='color: red;'>Connection lost. Reconnecting...</span>";
     };
 
-    // Function to simulate fetching data and updating the table
     function refreshAttendance() {
-      // Show loading indicator
-      document.getElementById("loadingIndicator").style.display = "block";
-
-      // Simulate an API call or some process to fetch new data (For demo purposes)
-      setTimeout(() => {
-        // Hide the loading indicator
-        document.getElementById("loadingIndicator").style.display = "none";
-
-        // Simulate the refresh process (replace this with actual data fetching logic)
-        console.log("Refreshing attendance data...");
-
-        // Update the table or perform any necessary actions here
-        document.getElementById("statusIndicator").innerHTML = "<span>Receiving data...</span>";
-      }, 2000); // Simulating a 2-second data fetching delay
+        document.getElementById("loadingIndicator").style.display = "block";
+        setTimeout(() => {
+            document.getElementById("loadingIndicator").style.display = "none";
+            console.log("Refreshing attendance data...");
+        }, 2000); // Simulating data fetching delay
     }
 
-    // Automatically refresh the screen every 5 seconds
     setInterval(function() {
         refreshAttendance();
     }, 5000); // 5 seconds interval
-
   </script>
 </body>
 </html>
