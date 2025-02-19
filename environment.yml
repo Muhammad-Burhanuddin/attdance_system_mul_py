@@ -7,4 +7,5 @@ dependencies:
   - pip
   - numpy
   - pandas
-  - flask  # Add other dependencies as needed
+  - flake8
+  - pytest
