@@ -59,6 +59,7 @@ class ZkConnect:
                     "status": status
                 }
             )
+    
     def fetch_attendance_logs(self):
         """Fetch all attendance logs and save them to the database."""
         if not self.connection:
