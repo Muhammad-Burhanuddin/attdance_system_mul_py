@@ -1,4 +1,5 @@
-name: base
+name: Set up conda environment
+run: conda env update --file attandance_app/environment.yml --name base
 dependencies:
   - python=3.10
   - pip
