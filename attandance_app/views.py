@@ -57,4 +57,17 @@ def fetch_attendance(request):
 
 
 def real_time_attendance(request):
-    return render(request, "real_time_attendance.html")
+    """
+    Render the real-time attendance page with a list of devices (IP and port)
+    loaded from the config.yaml file.
+    """
+    devices = []
+    try:
+        config_path = Path(__file__).resolve().parent / 'config.yaml'
+        with open(config_path, 'r') as stream:
+            config = ParseConfig.parse(stream)
+            devices = config.get('devices', [])  # Ensure 'devices' exists in config
+    except Exception as e:
+        logging.error("Error loading config: %s", e)
+    
+    return render(request, "real_time_attendance.html", {'devices': devices})

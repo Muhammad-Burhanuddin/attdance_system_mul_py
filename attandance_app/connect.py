@@ -1,9 +1,11 @@
+import json
 import logging
 import os
 import sys
 import threading
 from pathlib import Path
 from datetime import datetime
+import requests
 from yaml import Loader, load
 from zk import ZK
 from zk.exception import ZKError, ZKErrorConnection, ZKNetworkError
@@ -59,18 +61,38 @@ class ZkConnect:
                     "status": status
                 }
             )
-    
+   
+    def send_attendance_to_api(self, employee_id, employee_name, date_time):
+        """Send attendance data to the API and display response."""
+        try:
+            api_url = f"https://api.mul.edu.pk/attendance/api.php?method=mark_attendance&employee_id={employee_id}&employee_name={employee_name}&date_time={date_time}"
+            response = requests.get(api_url)
+
+            if response.status_code == 200:
+                try:
+                    # Try to parse JSON response
+                    api_response = response.json()
+                    print(f"✅ Attendance sent successfully for {employee_id} at {date_time}")
+                    print(f"📌 API Response: {json.dumps(api_response, indent=4)}")
+                except json.JSONDecodeError:
+                    print(f"✅ Attendance sent successfully, but response is not JSON: {response.text}")
+            else:
+                print(f"❌ Failed to send attendance. Status: {response.status_code}")
+                print(f"🔴 Response: {response.text}")
+
+        except Exception as e:
+            logging.error(f"⚠️ Error sending attendance to API: {e}")
+            print(f"⚠️ Error sending attendance: {e}")
+   
     def fetch_attendance_logs(self):
-        """Fetch all attendance logs and save them to the database."""
+        """Fetch all attendance logs, save them to the database, and send to API."""
         if not self.connection:
             raise ZKErrorConnection('Connection is not established!')
 
         try:
             logs = self.connection.get_attendance()
             users = self.connection.get_users()  # Fetch users from the device
-
-            # Create a dictionary mapping user_id -> user_name
-            user_map = {user.uid: user.name for user in users}
+            user_map = {user.uid: user.name for user in users}  # Map user_id -> user_name
 
             if logs:
                 print("\nAttendance Logs:")
@@ -82,16 +104,22 @@ class ZkConnect:
                     try:
                         naive_datetime = log.timestamp.replace(tzinfo=None)
                         aware_datetime = make_aware(naive_datetime)
+                        
+                        # Save to database
                         attendance_record = AttendanceRecord(
                             employee_id=log.user_id,
-                            employee_name=user_name,  # Or fetch from a user database
+                            employee_name=user_name,
                             date_time=aware_datetime,
-                            device_ip=self.host  # Store the device IP
+                            device_ip=self.host
                         )
                         attendance_record.save()
                         print(f"Saved attendance for User {log.user_id} at {log.timestamp}")
+
+                        # Send to API
+                        self.send_attendance_to_api(log.user_id, user_name, aware_datetime)
+
                     except Exception as e:
-                        logging.error(f"Error saving attendance record: {e}")  # Log the error
+                        logging.error(f"Error saving attendance record: {e}")
 
             else:
                 print("No attendance logs found.")
@@ -101,7 +129,7 @@ class ZkConnect:
             raise
 
     def live_attendance(self):
-        """Capture real-time attendance logs."""
+        """Capture real-time attendance logs and send them to API."""
         if not self.connection:
             raise ZKErrorConnection('Connection is not established!')
 
@@ -112,18 +140,21 @@ class ZkConnect:
                 timestamp = event.timestamp
                 print(f"[REAL-TIME] User {user_id} checked in at {timestamp}")
 
-                # Save real-time attendance to the database
                 naive_datetime = timestamp.replace(tzinfo=None)
                 aware_datetime = make_aware(naive_datetime)
-                
+
+                # Save to database
                 attendance_record = AttendanceRecord(
                     employee_id=user_id,
-                    employee_name="Unknown",  # If user details are unavailable
+                    employee_name="Unknown",
                     date_time=aware_datetime,
                     device_ip=self.host
                 )
                 attendance_record.save()
                 print(f"Real-time attendance saved for User {user_id} at {timestamp}")
+
+                # Send to API
+                self.send_attendance_to_api(user_id, "Unknown", aware_datetime)
 
             except Exception as e:
                 logging.error(f"Error saving real-time attendance: {e}")
