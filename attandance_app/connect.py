@@ -104,6 +104,7 @@ class ZkConnect:
                     try:
                         naive_datetime = log.timestamp.replace(tzinfo=None)
                         aware_datetime = make_aware(naive_datetime)
+                        formatted_datetime = aware_datetime.strftime("%d-%m-%Y %H:%M:%S")
                         
                         # Save to database
                         attendance_record = AttendanceRecord(
@@ -116,7 +117,7 @@ class ZkConnect:
                         print(f"Saved attendance for User {log.user_id} at {log.timestamp}")
 
                         # Send to API
-                        self.send_attendance_to_api(log.user_id, user_name, aware_datetime)
+                        self.send_attendance_to_api(log.user_id, user_name, formatted_datetime)
 
                     except Exception as e:
                         logging.error(f"Error saving attendance record: {e}")

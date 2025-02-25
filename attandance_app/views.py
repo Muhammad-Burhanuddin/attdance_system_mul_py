@@ -1,3 +1,4 @@
+from datetime import timedelta, timezone
 from django.shortcuts import render
 from django.http import JsonResponse
 from .models import AttendanceRecord
@@ -39,8 +40,9 @@ def fetch_attendance(request):
         zk.fetch_attendance_logs()
         zk.disconnect()
 
-        # Fetch the latest attendance records from the database.
-        records = AttendanceRecord.objects.all().order_by("-date_time")
+         # Fetch the latest attendance records from the last 5 minutes
+        five_minutes_ago = timezone.now() - timedelta(minutes=5)
+        records = AttendanceRecord.objects.filter(date_time__gte=five_minutes_ago).order_by('-date_time')
         data = [
             {
                 "employee_id": record.employee_id,
