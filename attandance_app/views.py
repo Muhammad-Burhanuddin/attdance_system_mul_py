@@ -71,3 +71,15 @@ def real_time_attendance(request):
         logging.error("Error loading config: %s", e)
     
     return render(request, "real_time_attendance.html", {'devices': devices})
+
+def get_all_attendance_records(request):
+    if request.method == "GET":
+        try:
+            zk = ZkConnect(host='192.168.12.37', port=4370)  
+            response = zk.get_all_attendance_records_updateAPI()
+            return JsonResponse(response, status=200)
+        except Exception as e:
+            logging.error(f"Error fetching attendance records: {e}")
+            return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse({"error": "Invalid request method"}, status=405)

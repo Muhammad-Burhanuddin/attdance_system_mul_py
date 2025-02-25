@@ -61,7 +61,7 @@ class ZkConnect:
                     "status": status
                 }
             )
-   
+
     def send_attendance_to_api(self, employee_id, employee_name, date_time):
         """Send attendance data to the API and display response."""
         try:
@@ -83,7 +83,7 @@ class ZkConnect:
         except Exception as e:
             logging.error(f"⚠️ Error sending attendance to API: {e}")
             print(f"⚠️ Error sending attendance: {e}")
-   
+
     def fetch_attendance_logs(self):
         """Fetch all attendance logs, save them to the database, and send to API."""
         if not self.connection:
@@ -127,6 +127,35 @@ class ZkConnect:
         except Exception as error:
             logging.error(f"Error fetching attendance logs: {error}")
             raise
+  
+  
+    def get_all_attendance_records_updateAPI(self):
+        """Fetch all attendance records from the database and update them on the API."""
+        try:
+            # Fetch all records from the database
+            records = AttendanceRecord.objects.filter(date_time__day=11).order_by("-date_time")
+            formatted_records = []
+
+            for record in records:
+                formatted_records.append({
+                    "employee_id": record.employee_id,
+                    "employee_name": record.employee_name,
+                    "date_time": record.date_time.strftime("%Y-%m-%d %H:%M:%S"),
+                    "device_ip": record.device_ip,
+                })
+
+                # Send attendance data to the API
+                self.send_attendance_to_api(
+                    employee_id=record.employee_id,
+                    employee_name=record.employee_name,
+                    date_time=record.date_time.strftime("%Y-%m-%d %H:%M:%S")
+                )
+
+            return {"records": formatted_records}
+
+        except Exception as e:
+            logging.error(f"Error fetching attendance records: {e}")
+            return {"error": str(e)}
 
     def live_attendance(self):
         """Capture real-time attendance logs and send them to API."""

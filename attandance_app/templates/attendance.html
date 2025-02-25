@@ -32,6 +32,9 @@
     <button class="btn btn-primary mt-3" onclick="fetchAttendance()">Fetch Attendance</button>
  
     <a href="{% url 'real_time_attendance' %}" class="btn btn-warning mt-3">Real-Time Attendance</a>
+    
+    <button class="btn btn-success mt-3" onclick="showAllRecords()">Show All Records</button>
+
 
     <div class="mt-4">
       <table class="table table-bordered">
@@ -53,7 +56,35 @@
   </div>
 
   <script>
-    // When a device is selected, fill the port field automatically
+    function showAllRecords() {
+      $.ajax({
+        url: "/get_all_attendance_records/",
+        type: "GET",
+        dataType: "json",
+        success: function(response) {
+          var tableBody = $('#attandance_app_attendancerecord');
+          tableBody.empty();
+          if (response.records.length === 0) {
+            tableBody.append('<tr><td colspan="4" class="text-center">No records found</td></tr>');
+            return;
+          }
+          response.records.forEach(function(record) {
+            tableBody.append(
+              `<tr>
+                <td>${record.employee_id}</td>
+                <td>${record.employee_name}</td>
+                <td>${record.date_time}</td>
+                <td>${record.device_ip}</td>
+              </tr>`
+            );
+          });
+        },
+        error: function(xhr) {
+          alert("Error loading records: " + (xhr.responseJSON?.error || "Unknown error"));
+        }
+      });
+    }
+    
     $('#deviceSelect').on('change', function(){
       var port = $(this).find(':selected').data('port');
       $('#port').val(port || '');
@@ -73,7 +104,7 @@
         dataType: "json",
         success: function(response) {
           var tableBody = $('#attandance_app_attendancerecord');
-          tableBody.empty(); // Clear existing table rows
+          tableBody.empty();
           if (response.records.length === 0) {
             tableBody.append('<tr><td colspan="4" class="text-center">No records found</td></tr>');
             return;
