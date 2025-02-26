@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     "channels",
     'django.contrib.staticfiles',
     'django_celery_beat',
+    'celery',
 ]
 
 
@@ -78,6 +79,8 @@ WSGI_APPLICATION = 'attandance_app_mul.wsgi.application'
 ASGI_APPLICATION = "attandance_app_mul.asgi.application"
 # settings.py
 CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
 
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
@@ -119,6 +122,9 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 
 USE_TZ = True
+
+broker_connection_retry_on_startup = True
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 
 
 # Static files (CSS, JavaScript, Images)
