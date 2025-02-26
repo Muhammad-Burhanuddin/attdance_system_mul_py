@@ -64,7 +64,7 @@ def send_attendance_to_api(employee_id, employee_name, date_time):
 def fetch_attendance_task():
     """Celery task to fetch attendance from all configured devices."""
     devices = [
-        {"host": "192.168.1.100", "port": 4370},  # Add more devices as needed
+        {"host": "192.168.12.37", "port": 4370},
     ]
     for device in devices:
         fetch_attendance_from_device(device["host"], device["port"])
