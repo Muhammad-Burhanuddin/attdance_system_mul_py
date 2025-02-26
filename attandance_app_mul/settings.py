@@ -38,9 +38,10 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'attandance_app', 
     'attandance_app_mul',
-    "daphne",  # Move this line up
+    "daphne",
     "channels",
-    'django.contrib.staticfiles',  # Make sure this comes after daphne
+    'django.contrib.staticfiles',
+    'django_celery_beat',
 ]
 
 
@@ -75,6 +76,8 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'attandance_app_mul.wsgi.application'
 ASGI_APPLICATION = "attandance_app_mul.asgi.application"
+# settings.py
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
 
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
