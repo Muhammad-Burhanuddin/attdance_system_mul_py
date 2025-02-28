@@ -104,7 +104,7 @@ class ZkConnect:
                     try:
                         naive_datetime = log.timestamp.replace(tzinfo=None)
                         aware_datetime = make_aware(naive_datetime)
-                        formatted_datetime = aware_datetime.strftime("%d-%m-%Y %H:%M:%S")
+                        formatted_datetime = aware_datetime.strftime("%Y-%m-%d %H:%M:%S")
                         
                         # Save to database
                         attendance_record = AttendanceRecord(
