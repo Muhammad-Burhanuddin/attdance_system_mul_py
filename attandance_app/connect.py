@@ -134,7 +134,9 @@ class ZkConnect:
         """Fetch all attendance records from the database and update them on the API."""
         try:
             # Fetch all records from the database
-            records = AttendanceRecord.objects.filter(date_time__day=11).order_by("-date_time")
+            # records = AttendanceRecord.objects.filter(date_time__day=11).order_by("-date_time")
+
+            records = AttendanceRecord.order_by("-date_time")
             formatted_records = []
 
             for record in records:
