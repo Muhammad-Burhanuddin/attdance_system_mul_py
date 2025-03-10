@@ -91,8 +91,8 @@ class ZkConnect:
 
         try:
             logs = self.connection.get_attendance()
-            users = self.connection.get_users()  # Fetch users from the device
-            user_map = {user.uid: user.name for user in users}  # Map user_id -> user_name
+            users = self.connection.get_users()
+            user_map = {user.uid: user.name for user in users} 
 
             if logs:
                 print("\nAttendance Logs:")
@@ -134,9 +134,7 @@ class ZkConnect:
         """Fetch all attendance records from the database and update them on the API."""
         try:
             # Fetch all records from the database
-            records = AttendanceRecord.objects.filter(date_time__day=3).order_by("-date_time")
-
-            # records = AttendanceRecord.order_by("-date_time")
+            records = AttendanceRecord.objects.all()
             formatted_records = []
 
             for record in records:
