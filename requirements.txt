@@ -1,4 +1,6 @@
-django
-gunicorn
+Django
 celery
-redis
+django-celery-beat
+requests
+PyYAML
+pyzk
