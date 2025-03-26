@@ -4,3 +4,4 @@ django-celery-beat
 requests
 PyYAML
 pyzk
+daphne
