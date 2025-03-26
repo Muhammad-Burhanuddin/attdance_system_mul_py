@@ -1,6 +1,4 @@
 
-TOML
-
 [build]
 builder = "NIXPACKS"
 
