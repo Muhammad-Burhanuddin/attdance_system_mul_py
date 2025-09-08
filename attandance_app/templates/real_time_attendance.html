@@ -70,9 +70,24 @@
 
   <script>
     $(document).ready(function() {
+      // Auto-start all configured devices when page loads
+      $.get('/start_all_devices/');
+
       $('#deviceSelect').on('change', function() {
         var port = $(this).find(':selected').data('port');
         $('#port').val(port || '');
+
+        var ip = $(this).val();
+        if (ip && port) {
+          // Show immediate UI feedback
+          updateConnectionStatus(ip, 'connecting...');
+          // Kick off device connection on the server (non-blocking)
+          $.get('/start_device/', { ip: ip, port: port })
+            .fail(function(xhr) {
+              updateConnectionStatus(ip, 'failed');
+              console.error('Failed to start device', xhr.responseText);
+            });
+        }
       });
     });
 

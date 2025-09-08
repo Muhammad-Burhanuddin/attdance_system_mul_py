@@ -1,9 +1,10 @@
 from django.shortcuts import render
 from django.http import JsonResponse
 from .models import AttendanceRecord
-from .connect import ZkConnect , ParseConfig
+from .connect import ZkConnect , ParseConfig, run_device
 from pathlib import Path
 import logging
+import threading
 
 def attendance_home(request):
     """
@@ -66,7 +67,7 @@ def real_time_attendance(request):
         config_path = Path(__file__).resolve().parent / 'config.yaml'
         with open(config_path, 'r') as stream:
             config = ParseConfig.parse(stream)
-            devices = config.get('devices', [])  # Ensure 'devices' exists in config
+            devices = config.get('devices', []) 
     except Exception as e:
         logging.error("Error loading config: %s", e)
     
@@ -83,3 +84,52 @@ def get_all_attendance_records(request):
             return JsonResponse({"error": str(e)}, status=500)
 
     return JsonResponse({"error": "Invalid request method"}, status=405)
+
+
+def start_device(request):
+    """
+    Start a live connection to a selected device (non-blocking).
+    GET params: ip, port
+    """
+    if request.method != "GET":
+        return JsonResponse({"error": "Invalid request method"}, status=405)
+
+    ip = request.GET.get("ip")
+    port = request.GET.get("port")
+    if not ip or not port:
+        return JsonResponse({"error": "IP and Port are required."}, status=400)
+
+    try:
+        device = {"host": ip, "port": int(port)}
+        thread = threading.Thread(target=run_device, args=(device,), daemon=True)
+        thread.start()
+        return JsonResponse({"status": "started", "host": ip, "port": int(port)})
+    except Exception as e:
+        logging.error(f"Error starting device {ip}:{port} - {e}")
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+def start_all_devices(request):
+    """Start live connections for all devices in config.yaml (non-blocking)."""
+    if request.method != "GET":
+        return JsonResponse({"error": "Invalid request method"}, status=405)
+
+    try:
+        config_path = Path(__file__).resolve().parent / 'config.yaml'
+        with open(config_path, 'r') as stream:
+            config = ParseConfig.parse(stream)
+            devices = config.get('devices', [])
+
+        started = []
+        for device in devices:
+            try:
+                thread = threading.Thread(target=run_device, args=(device,), daemon=True)
+                thread.start()
+                started.append({"host": device['host'], "port": device['port']})
+            except Exception as e:
+                logging.error(f"Error starting device {device}: {e}")
+
+        return JsonResponse({"status": "started", "devices": started})
+    except Exception as e:
+        logging.error(f"Error starting all devices: {e}")
+        return JsonResponse({"error": str(e)}, status=500)

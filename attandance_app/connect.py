@@ -11,9 +11,11 @@ from zk import ZK
 from zk.exception import ZKError, ZKErrorConnection, ZKNetworkError
 import django
 from django.utils.timezone import make_aware
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 
 # Set the environment variable for Django settings
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'attendance_app_mul.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'attandance_app_mul.settings')
 django.setup()
 
 from attandance_app.models import AttendanceRecord
@@ -33,6 +35,7 @@ class ZkConnect:
         self.endpoint = endpoint
         self.transmission = transmission
         self.connection = None
+        self.channel_layer = get_channel_layer()
         self._connect()
 
     def _connect(self, reconnect=False):
@@ -43,23 +46,27 @@ class ZkConnect:
             if reconnect:
                 logging.debug('Reconnecting...')
             logging.info(f'Connected: {self.host}:{self.port}')
+            # Notify clients about connection state
+            self._send_connection_status('connected')
         except (ZKNetworkError, ZKErrorConnection, ZKError) as error:
             logging.error(f'Connection error ({self.host}): {error}')
+            self._send_connection_status('disconnected')
             raise
         except Exception as error:
             logging.error(f'Unexpected error ({self.host}): {error}')
+            self._send_connection_status('disconnected')
             raise
 
     def _send_connection_status(self, status):
         """Send connection status to the frontend via WebSocket."""
         if self.channel_layer:
-            self.channel_layer.group_send(
-                "attendance_status", 
+            async_to_sync(self.channel_layer.group_send)(
+                "attendance_updates",
                 {
                     "type": "update_connection_status",
                     "host": self.host,
-                    "status": status
-                }
+                    "status": status,
+                },
             )
 
     def send_attendance_to_api(self, employee_id, employee_name, date_time):
@@ -129,7 +136,6 @@ class ZkConnect:
             logging.error(f"Error fetching attendance logs: {error}")
             raise
   
-  
     def get_all_attendance_records_updateAPI(self):
         """Fetch all attendance records from the database and update them on the API."""
         try:
@@ -163,35 +169,41 @@ class ZkConnect:
         if not self.connection:
             raise ZKErrorConnection('Connection is not established!')
 
-        def handle_real_time_attendance(event):
-            """Process a real-time attendance event."""
-            try:
-                user_id = event.user_id
-                timestamp = event.timestamp
-                print(f"[REAL-TIME] User {user_id} checked in at {timestamp}")
-
-                naive_datetime = timestamp.replace(tzinfo=None)
-                aware_datetime = make_aware(naive_datetime)
-
-                # Save to database
-                attendance_record = AttendanceRecord(
-                    employee_id=user_id,
-                    employee_name="Unknown",
-                    date_time=aware_datetime,
-                    device_ip=self.host
-                )
-                attendance_record.save()
-                print(f"Real-time attendance saved for User {user_id} at {timestamp}")
-
-                # Send to API
-                self.send_attendance_to_api(user_id, "Unknown", aware_datetime)
-
-            except Exception as e:
-                logging.error(f"Error saving real-time attendance: {e}")
-
         try:
             print("Listening for real-time attendance events...")
-            self.connection.live_capture(callback=handle_real_time_attendance)
+            for event in self.connection.live_capture():
+                if not event:
+                    continue
+                try:
+                    user_id = event.user_id
+                    timestamp = event.timestamp
+                    print(f"[REAL-TIME] User {user_id} checked in at {timestamp}")
+
+                    naive_datetime = timestamp.replace(tzinfo=None)
+                    aware_datetime = make_aware(naive_datetime)
+
+                    # Save to database
+                    attendance_record = AttendanceRecord(
+                        employee_id=user_id,
+                        employee_name="Unknown",
+                        date_time=aware_datetime,
+                        device_ip=self.host
+                    )
+                    attendance_record.save()
+                    print(f"Real-time attendance saved for User {user_id} at {timestamp}")
+
+                    # Send to API
+                    self.send_attendance_to_api(user_id, "Unknown", aware_datetime)
+
+                    # Broadcast to WebSocket clients
+                    self._send_real_time_data({
+                        "employee_id": user_id,
+                        "employee_name": "Unknown",
+                        "date_time": aware_datetime.strftime("%Y-%m-%d %H:%M:%S"),
+                        "device_ip": self.host,
+                    })
+                except Exception as e:
+                    logging.error(f"Error saving real-time attendance: {e}")
         except Exception as error:
             logging.error(f"Real-time attendance error: {error}")
             raise
@@ -199,18 +211,19 @@ class ZkConnect:
     def _send_real_time_data(self, data):
         """Send real-time attendance data to the frontend via WebSocket."""
         if self.channel_layer:
-            self.channel_layer.group_send(
-                "attendance_data",
+            async_to_sync(self.channel_layer.group_send)(
+                "attendance_updates",
                 {
                     "type": "update_attendance_data",
-                    "data": data
-                }
+                    "data": data,
+                },
             )
     def disconnect(self):
         """Disconnect from the device."""
         if self.connection:
             self.connection.disconnect()
             logging.info(f'Disconnected from {self.host}')
+            self._send_connection_status('disconnected')
 
 
 class ParseConfig:
@@ -239,7 +252,6 @@ def config_logger(config):
         filename=get_log_file_name(config),
         level=logging.DEBUG
     )
-
 
 def get_log_file_name(config):
     """Determine the log file name."""
