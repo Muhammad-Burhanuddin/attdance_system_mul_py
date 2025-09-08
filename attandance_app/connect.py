@@ -13,6 +13,7 @@ import django
 from django.utils.timezone import make_aware
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
+from collections import deque
 
 # Set the environment variable for Django settings
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'attandance_app_mul.settings')
@@ -35,7 +36,10 @@ class ZkConnect:
         self.endpoint = endpoint
         self.transmission = transmission
         self.connection = None
+        self.user_map = {}
         self.channel_layer = get_channel_layer()
+        # Protect against duplicate real-time events (same second)
+        self.recent_events = deque(maxlen=500)
         self._connect()
 
     def _connect(self, reconnect=False):
@@ -48,6 +52,12 @@ class ZkConnect:
             logging.info(f'Connected: {self.host}:{self.port}')
             # Notify clients about connection state
             self._send_connection_status('connected')
+            # Build a user map for quick name lookup
+            try:
+                users = self.connection.get_users()
+                self.user_map = self._build_user_map(users)
+            except Exception as map_err:
+                logging.warning(f'Could not build user map on connect ({self.host}): {map_err}')
         except (ZKNetworkError, ZKErrorConnection, ZKError) as error:
             logging.error(f'Connection error ({self.host}): {error}')
             self._send_connection_status('disconnected')
@@ -70,26 +80,49 @@ class ZkConnect:
             )
 
     def send_attendance_to_api(self, employee_id, employee_name, date_time):
-        """Send attendance data to the API and display response."""
+        """Send attendance data to external APIs if configured."""
         try:
-            api_url = f"https://api.mul.edu.pk/attendance/api.php?method=mark_attendance&employee_id={employee_id}&employee_name={employee_name}&date_time={date_time}"
-            response = requests.get(api_url)
-
-            if response.status_code == 200:
+            # Optional: MUL API passthrough
+            mul_api = os.getenv('MUL_API_URL')
+            if mul_api:
+                api_url = f"{mul_api}?method=mark_attendance&employee_id={employee_id}&employee_name={employee_name}&date_time={date_time}"
                 try:
-                    # Try to parse JSON response
-                    api_response = response.json()
-                    print(f"✅ Attendance sent successfully for {employee_id} at {date_time}")
-                    print(f"📌 API Response: {json.dumps(api_response, indent=4)}")
-                except json.JSONDecodeError:
-                    print(f"✅ Attendance sent successfully, but response is not JSON: {response.text}")
-            else:
-                print(f"❌ Failed to send attendance. Status: {response.status_code}")
-                print(f"🔴 Response: {response.text}")
+                    response = requests.get(api_url, timeout=10)
+                    if response.status_code == 200:
+                        try:
+                            _ = response.json()
+                        except Exception:
+                            pass
+                    else:
+                        logging.warning(f"MUL API failed: {response.status_code}")
+                except Exception as e:
+                    logging.error(f"MUL API error: {e}")
+
+            # Optional: Cloud ingestion endpoint
+            cloud_url = os.getenv('CLOUD_EVENT_URL')
+            shared = os.getenv('COLLECTOR_SHARED_SECRET')
+            if cloud_url:
+                payload = {
+                    "employee_id": str(employee_id),
+                    "employee_name": employee_name,
+                    "date_time": date_time if isinstance(date_time, str) else date_time.strftime("%Y-%m-%d %H:%M:%S"),
+                    "device_ip": self.host,
+                }
+                data = json.dumps(payload).encode('utf-8')
+                headers = {"Content-Type": "application/json"}
+                if shared:
+                    import hashlib, hmac
+                    sig = hmac.new(shared.encode('utf-8'), data, hashlib.sha256).hexdigest()
+                    headers["X-Collector-Signature"] = sig
+                try:
+                    r = requests.post(cloud_url, data=data, headers=headers, timeout=10)
+                    if r.status_code >= 300:
+                        logging.warning(f"Cloud ingest failed: {r.status_code} {r.text}")
+                except Exception as e:
+                    logging.error(f"Cloud ingest error: {e}")
 
         except Exception as e:
-            logging.error(f"⚠️ Error sending attendance to API: {e}")
-            print(f"⚠️ Error sending attendance: {e}")
+            logging.error(f"Send API error: {e}")
 
     def fetch_attendance_logs(self):
         """Fetch all attendance logs, save them to the database, and send to API."""
@@ -99,14 +132,15 @@ class ZkConnect:
         try:
             logs = self.connection.get_attendance()
             users = self.connection.get_users()
-            user_map = {user.uid: user.name for user in users} 
+            # Refresh the cached user map
+            self.user_map = self._build_user_map(users)
 
             if logs:
                 print("\nAttendance Logs:")
                 print("----------------")
                 for log in logs:
                     print(f"User ID: {log.user_id}, Timestamp: {log.timestamp}")
-                    user_name = user_map.get(log.user_id, "Unknown")
+                    user_name = self.user_map.get(str(log.user_id), "Unknown") or "Unknown"
 
                     try:
                         naive_datetime = log.timestamp.replace(tzinfo=None)
@@ -181,11 +215,28 @@ class ZkConnect:
 
                     naive_datetime = timestamp.replace(tzinfo=None)
                     aware_datetime = make_aware(naive_datetime)
+                    # Resolve employee name, refresh map if missing
+                    employee_name = self.user_map.get(str(user_id))
+                    if not employee_name:
+                        try:
+                            users = self.connection.get_users()
+                            self.user_map = self._build_user_map(users)
+                            employee_name = self.user_map.get(str(user_id), "Unknown") or "Unknown"
+                        except Exception:
+                            employee_name = "Unknown"
+
+                    # Build a de-duplication key (device|user|YYYY-mm-dd HH:MM:SS)
+                    formatted_datetime = aware_datetime.strftime("%Y-%m-%d %H:%M:%S")
+                    event_key = f"{self.host}|{user_id}|{formatted_datetime}"
+                    if event_key in self.recent_events:
+                        # Skip duplicates emitted by the device/lib
+                        continue
+                    self.recent_events.append(event_key)
 
                     # Save to database
                     attendance_record = AttendanceRecord(
                         employee_id=user_id,
-                        employee_name="Unknown",
+                        employee_name=employee_name,
                         date_time=aware_datetime,
                         device_ip=self.host
                     )
@@ -193,13 +244,13 @@ class ZkConnect:
                     print(f"Real-time attendance saved for User {user_id} at {timestamp}")
 
                     # Send to API
-                    self.send_attendance_to_api(user_id, "Unknown", aware_datetime)
+                    self.send_attendance_to_api(user_id, employee_name, formatted_datetime)
 
                     # Broadcast to WebSocket clients
                     self._send_real_time_data({
                         "employee_id": user_id,
-                        "employee_name": "Unknown",
-                        "date_time": aware_datetime.strftime("%Y-%m-%d %H:%M:%S"),
+                        "employee_name": employee_name,
+                        "date_time": formatted_datetime,
                         "device_ip": self.host,
                     })
                 except Exception as e:
@@ -207,6 +258,25 @@ class ZkConnect:
         except Exception as error:
             logging.error(f"Real-time attendance error: {error}")
             raise
+
+    def _build_user_map(self, users):
+        """Create a lookup dict for names by both uid and user_id, normalized to str."""
+        mapping = {}
+        for user in users:
+            try:
+                name = (getattr(user, 'name', None) or getattr(user, 'username', '') or '').strip()
+                if not name:
+                    continue
+                # Some libs expose numeric uid and string user_id
+                uid = getattr(user, 'uid', None)
+                user_id = getattr(user, 'user_id', None)
+                if uid is not None:
+                    mapping[str(uid)] = name
+                if user_id is not None:
+                    mapping[str(user_id)] = name
+            except Exception:
+                continue
+        return mapping
 
     def _send_real_time_data(self, data):
         """Send real-time attendance data to the frontend via WebSocket."""

@@ -15,7 +15,12 @@
 </head>
 <body class="bg-light">
   <div class="container mt-5">
-    <h2 class="mb-4 text-center">Real-Time Attendance</h2>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h2 class="m-0">Real-Time Attendance</h2>
+      <div>
+        <a href="/devices/" class="btn btn-outline-primary">Devices</a>
+      </div>
+    </div>
     
     <!-- Device Selection -->
     <div class="row mb-3">
@@ -65,13 +70,16 @@
       </tbody>
     </table>
     
-    <a href="/" class="btn btn-secondary">Back</a>
+    <a href="/devices/" class="btn btn-secondary">Back</a>
   </div>
 
   <script>
-    $(document).ready(function() {
-      // Auto-start all configured devices when page loads
-      $.get('/start_all_devices/');
+    function initRealTimePage() {
+      // Auto-start all configured devices when page loads (first load only)
+      if (!window.__rt_devices_started) {
+        $.get('/start_all_devices/');
+        window.__rt_devices_started = true;
+      }
 
       $('#deviceSelect').on('change', function() {
         var port = $(this).find(':selected').data('port');
@@ -89,21 +97,49 @@
             });
         }
       });
+
+      // Open WebSocket once per lifecycle
+      if (!window.__rt_socket) {
+        const socket = new WebSocket((window.location.protocol === "https:" ? "wss://" : "ws://") + window.location.host + "/ws/real_time_attendance/");
+        window.__rt_socket = socket;
+
+        socket.onmessage = function(event) {
+          const message = JSON.parse(event.data);
+
+          if (message.type === "update_connection_status") {
+            updateConnectionStatus(message.host, message.status);
+          }
+
+          if (message.type === "update_attendance_data") {
+            updateAttendanceTable(message.data);
+          }
+        };
+
+        socket.onclose = function(event) {
+          document.getElementById("statusIndicator").innerHTML = "<span style='color: red;'>Connection lost. Reconnecting...</span>";
+          // Allow reinit on next foreground visit
+          window.__rt_socket = null;
+        };
+      }
+    }
+
+    // First load
+    $(document).ready(function() {
+      if (!window.__rt_initialized) {
+        initRealTimePage();
+        window.__rt_initialized = true;
+      }
     });
 
-    const socket = new WebSocket((window.location.protocol === "https:" ? "wss://" : "ws://") + window.location.host + "/ws/real_time_attendance/");
-
-    socket.onmessage = function(event) {
-        const message = JSON.parse(event.data);
-
-        if (message.type === "update_connection_status") {
-            updateConnectionStatus(message.host, message.status);
+    // If page is restored from bfcache, DOM/state persists; avoid reinit
+    window.addEventListener('pageshow', function(e) {
+      if (e.persisted) {
+        // Re-open socket only if needed
+        if (!window.__rt_socket) {
+          initRealTimePage();
         }
-
-        if (message.type === "update_attendance_data") {
-            updateAttendanceTable(message.data);
-        }
-    };
+      }
+    });
 
     function updateConnectionStatus(host, status) {
         const statusList = document.getElementById("deviceStatusList");
@@ -131,9 +167,6 @@
         tableBody.prepend(newRow);
     }
 
-    socket.onclose = function(event) {
-        document.getElementById("statusIndicator").innerHTML = "<span style='color: red;'>Connection lost. Reconnecting...</span>";
-    };
   </script>
 </body>
 </html>
