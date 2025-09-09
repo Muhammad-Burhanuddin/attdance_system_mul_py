@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: attendance-asgi
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: daphne -b 0.0.0.0 -p $PORT attandance_app_mul.asgi:application
+    envVars:
+      - key: DEBUG
+        value: "False"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALLOWED_HOSTS
+        value: "*"
+      - key: REDIS_URL
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+
