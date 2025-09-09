@@ -1,7 +1,7 @@
 from celery import Celery
 import os
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "attandance_app_mul.settings")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "attandance_app_mul.settings.dev")
 
 app = Celery("attandance_app_mul")
 app.config_from_object("django.conf:settings", namespace="CELERY")

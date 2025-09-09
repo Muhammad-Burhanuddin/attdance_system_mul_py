@@ -14,7 +14,7 @@ from channels.auth import AuthMiddlewareStack
 import attandance_app.routing
 from channels.layers import get_channel_layer
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'attandance_app_mul.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'attandance_app_mul.settings.dev')
 
 application = ProtocolTypeRouter({
     "http": get_asgi_application(),

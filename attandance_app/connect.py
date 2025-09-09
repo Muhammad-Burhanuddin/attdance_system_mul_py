@@ -16,7 +16,8 @@ from channels.layers import get_channel_layer
 from collections import deque
 
 # Set the environment variable for Django settings
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'attandance_app_mul.settings')
+# Default to development settings unless the environment overrides it
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'attandance_app_mul.settings.dev')
 django.setup()
 
 from attandance_app.models import AttendanceRecord
@@ -82,21 +83,28 @@ class ZkConnect:
     def send_attendance_to_api(self, employee_id, employee_name, date_time):
         """Send attendance data to external APIs if configured."""
         try:
-            # Optional: MUL API passthrough
-            mul_api = os.getenv('MUL_API_URL')
-            if mul_api:
-                api_url = f"{mul_api}?method=mark_attendance&employee_id={employee_id}&employee_name={employee_name}&date_time={date_time}"
-                try:
-                    response = requests.get(api_url, timeout=10)
-                    if response.status_code == 200:
-                        try:
-                            _ = response.json()
-                        except Exception:
-                            pass
-                    else:
-                        logging.warning(f"MUL API failed: {response.status_code}")
-                except Exception as e:
-                    logging.error(f"MUL API error: {e}")
+            logging.info(
+                f"Forwarding attendance: id={employee_id}, name={employee_name}, time={date_time}, device={self.host}"
+            )
+            # Direct MUL API call (hardcoded as requested)
+            from urllib.parse import quote_plus
+            eid = quote_plus(str(employee_id))
+            ename = quote_plus(str(employee_name))
+            dtime = quote_plus(date_time if isinstance(date_time, str) else date_time.strftime("%Y-%m-%d %H:%M:%S"))
+            api_url = (
+                "https://api.mul.edu.pk/attendance/api.php"
+                f"?method=mark_attendance&employee_id={eid}&employee_name={ename}&date_time={dtime}"
+            )
+            try:
+                response = requests.get(api_url, timeout=10)
+                body_preview = (response.text or "").strip()
+                if len(body_preview) > 500:
+                    body_preview = body_preview[:500] + "..."
+                logging.info(
+                    f"MUL API request -> GET {api_url} | status={response.status_code} | body={body_preview}"
+                )
+            except Exception as e:
+                logging.error(f"MUL API error: {e}")
 
             # Optional: Cloud ingestion endpoint
             cloud_url = os.getenv('CLOUD_EVENT_URL')
@@ -116,10 +124,16 @@ class ZkConnect:
                     headers["X-Collector-Signature"] = sig
                 try:
                     r = requests.post(cloud_url, data=data, headers=headers, timeout=10)
-                    if r.status_code >= 300:
-                        logging.warning(f"Cloud ingest failed: {r.status_code} {r.text}")
+                    body_preview = (getattr(r, 'text', '') or '').strip()
+                    if len(body_preview) > 500:
+                        body_preview = body_preview[:500] + "..."
+                    logging.info(
+                        f"Cloud ingest -> POST {cloud_url} | status={r.status_code} | body={body_preview}"
+                    )
                 except Exception as e:
                     logging.error(f"Cloud ingest error: {e}")
+            else:
+                logging.debug("CLOUD_EVENT_URL not set; skipping cloud ingest")
 
         except Exception as e:
             logging.error(f"Send API error: {e}")

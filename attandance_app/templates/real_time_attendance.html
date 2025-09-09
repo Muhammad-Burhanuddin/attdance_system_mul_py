@@ -74,12 +74,67 @@
   </div>
 
   <script>
-    function initRealTimePage() {
-      // Auto-start all configured devices when page loads (first load only)
-      if (!window.__rt_devices_started) {
-        $.get('/start_all_devices/');
-        window.__rt_devices_started = true;
+    // List of configured devices injected from server for initial status seeding
+    const __configuredDevices = [
+      {% for device in devices %}
+        { host: "{{ device.host }}", port: {{ device.port }} },
+      {% endfor %}
+    ];
+
+    function seedDeviceStatus(placeText) {
+      const statusList = document.getElementById("deviceStatusList");
+      statusList.innerHTML = "";
+      __configuredDevices.forEach(function(d){
+        const li = document.createElement("li");
+        li.id = `device-${d.host}`;
+        li.innerHTML = `${d.host}: <span style="color: orange;">${placeText}</span>`;
+        statusList.appendChild(li);
+      });
+    }
+
+    function getStatusMap() {
+      try {
+        return JSON.parse(localStorage.getItem('deviceStatusMap') || '{}');
+      } catch (e) {
+        return {};
       }
+    }
+
+    function setStatus(host, status) {
+      const map = getStatusMap();
+      map[host] = status;
+      localStorage.setItem('deviceStatusMap', JSON.stringify(map));
+    }
+
+    function checkAndEnsureConnections(devices) {
+      devices.forEach(function(d){
+        updateConnectionStatus(d.host, 'checking...');
+        $.getJSON('/start_device/', { ip: d.host, port: d.port })
+          .done(function(resp){
+            if (resp && resp.status === 'already_running') {
+              updateConnectionStatus(d.host, 'connected');
+              setStatus(d.host, 'connected');
+            } else if (resp && resp.status === 'started') {
+              updateConnectionStatus(d.host, 'connecting...');
+              setStatus(d.host, 'connecting');
+            } else {
+              updateConnectionStatus(d.host, 'failed');
+              setStatus(d.host, 'failed');
+            }
+          })
+          .fail(function(){
+            updateConnectionStatus(d.host, 'failed');
+            setStatus(d.host, 'failed');
+          });
+      });
+    }
+
+    function initRealTimePage() {
+      // Show initial status placeholders immediately
+      seedDeviceStatus('checking...');
+
+      // On each load/refresh, actively check and ensure connection status per device
+      checkAndEnsureConnections(__configuredDevices);
 
       $('#deviceSelect').on('change', function() {
         var port = $(this).find(':selected').data('port');
@@ -108,6 +163,7 @@
 
           if (message.type === "update_connection_status") {
             updateConnectionStatus(message.host, message.status);
+            setStatus(message.host, message.status);
           }
 
           if (message.type === "update_attendance_data") {
@@ -119,6 +175,8 @@
           document.getElementById("statusIndicator").innerHTML = "<span style='color: red;'>Connection lost. Reconnecting...</span>";
           // Allow reinit on next foreground visit
           window.__rt_socket = null;
+          // Re-check connections shortly after socket closes
+          setTimeout(function(){ checkAndEnsureConnections(__configuredDevices); }, 1000);
         };
       }
     }
@@ -133,11 +191,11 @@
 
     // If page is restored from bfcache, DOM/state persists; avoid reinit
     window.addEventListener('pageshow', function(e) {
-      if (e.persisted) {
-        // Re-open socket only if needed
-        if (!window.__rt_socket) {
-          initRealTimePage();
-        }
+      // On browser back-forward cache restore or normal show, ensure devices are (re)started
+      seedDeviceStatus('checking...');
+      checkAndEnsureConnections(__configuredDevices);
+      if (!window.__rt_socket) {
+        initRealTimePage();
       }
     });
 
