@@ -249,3 +249,7 @@ INFO 2025-09-09 13:25:21,507 runserver 25432 17648 [mHTTP GET /start_device/?ip
 INFO 2025-09-09 13:25:21,525 runserver 25432 17648 [mHTTP GET /start_device/?ip=192.168.12.37&port=4370 200 [0.04, 127.0.0.1:55851][0m
 INFO 2025-09-09 13:25:21,525 runserver 25432 17648 [mHTTP GET /start_device/?ip=192.168.12.230&port=4370 200 [0.02, 127.0.0.1:56689][0m
 INFO 2025-09-09 13:25:21,525 runserver 25432 17648 [mHTTP GET /start_device/?ip=192.168.12.231&port=4370 200 [0.02, 127.0.0.1:49931][0m
+INFO 2025-09-09 14:36:22,624 runserver 25432 17648 [mHTTP GET /devices/ 200 [0.02, 127.0.0.1:59552][0m
+INFO 2025-09-09 14:36:22,700 runserver 25432 17648 WebSocket DISCONNECT /ws/real_time_attendance/ [127.0.0.1:63094]
+INFO 2025-09-09 14:36:25,711 runserver 25432 17648 WebSocket HANDSHAKING /ws/real_time_attendance/ [127.0.0.1:54871]
+INFO 2025-09-09 14:36:25,714 runserver 25432 17648 WebSocket CONNECT /ws/real_time_attendance/ [127.0.0.1:54871]
