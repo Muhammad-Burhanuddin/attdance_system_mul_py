@@ -16,8 +16,10 @@ A real-time attendance management system built with Django, featuring WebSocket 
 - **Real-time**: Django Channels with WebSocket support
 - **Task Queue**: Celery with Redis
 - **Database**: SQLite (development), PostgreSQL (production)
+- **Static Files**: WhiteNoise for production static file serving
 - **Deployment**: Render.com
-- **CI/CD**: GitHub Actions
+- **CI/CD**: GitHub Actions with Redis service
+- **Security**: Production-ready security settings
 
 ## Installation
 
@@ -53,6 +55,7 @@ A real-time attendance management system built with Django, featuring WebSocket 
    ```env
    SECRET_KEY=your-secret-key-here
    DEBUG=True
+   ALLOWED_HOSTS=localhost,127.0.0.1
    REDIS_URL=redis://localhost:6379/0
    DATABASE_URL=sqlite:///db.sqlite3
    ```
@@ -84,12 +87,17 @@ A real-time attendance management system built with Django, featuring WebSocket 
    celery -A attandance_app_mul worker --loglevel=info
    ```
 
-9. **Start the development server**
+9. **Collect static files (for production-like testing)**
    ```bash
-   python manage.py runserver
+   python manage.py collectstatic --noinput
    ```
 
-10. **Access the application**
+10. **Start the development server**
+    ```bash
+    python manage.py runserver
+    ```
+
+11. **Access the application**
     - Web interface: http://localhost:8000
     - Admin panel: http://localhost:8000/admin
 

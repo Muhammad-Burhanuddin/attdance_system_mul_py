@@ -3,7 +3,9 @@ services:
     name: attendance-asgi
     runtime: python
     plan: free
-    buildCommand: pip install -r requirements.txt
+    buildCommand: |
+      pip install -r requirements.txt
+      python manage.py collectstatic --noinput
     startCommand: daphne -b 0.0.0.0 -p $PORT attandance_app_mul.asgi:application
     envVars:
       - key: DEBUG
