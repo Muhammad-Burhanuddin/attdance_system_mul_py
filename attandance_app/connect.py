@@ -17,7 +17,7 @@ from collections import deque
 
 # Set the environment variable for Django settings
 # Default to development settings unless the environment overrides it
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'attandance_app_mul.settings.dev')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'attandance_app_py.settings.dev')
 django.setup()
 
 from attandance_app.models import AttendanceRecord

@@ -84,7 +84,7 @@ A real-time attendance management system built with Django, featuring WebSocket 
 
 8. **Start Celery worker**
    ```bash
-   celery -A attandance_app_mul worker --loglevel=info
+   celery -A attandance_app_py worker --loglevel=info
    ```
 
 9. **Collect static files (for production-like testing)**
@@ -121,13 +121,13 @@ The `render.yaml` file contains the deployment configuration.
 
 ### Selecting settings module
 
-For local development the project defaults to `attandance_app_mul.settings.dev`.
+For local development the project defaults to `attandance_app_py.settings.dev`.
 For production set the environment variable before running the app:
 
 ```bash
-set DJANGO_SETTINGS_MODULE=attandance_app_mul.settings.prod
+set DJANGO_SETTINGS_MODULE=attandance_app_py.settings.prod
 # or in Linux/macOS
-export DJANGO_SETTINGS_MODULE=attandance_app_mul.settings.prod
+export DJANGO_SETTINGS_MODULE=attandance_app_py.settings.prod
 ```
 
 ### Environment Variables
@@ -151,7 +151,7 @@ attdance_system/
 │   ├── consumers.py        # WebSocket consumers
 │   ├── templates/          # HTML templates
 │   └── migrations/         # Database migrations
-├── attandance_app_mul/     # Django project settings
+├── attandance_app_py/     # Django project settings
 │   ├── settings/           # Settings package (split)
 │   │   ├── base.py         # Base settings
 │   │   ├── dev.py          # Development overrides

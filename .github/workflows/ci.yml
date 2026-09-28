@@ -48,7 +48,7 @@ jobs:
 
       - name: Run Django system checks
         env:
-          DJANGO_SETTINGS_MODULE: attandance_app_mul.settings
+          DJANGO_SETTINGS_MODULE: attandance_app_py.settings
           SECRET_KEY: test-secret-key-for-ci
           DEBUG: 'False'
           ALLOWED_HOSTS: 'localhost,127.0.0.1'
@@ -60,7 +60,7 @@ jobs:
 
       - name: Run database migrations
         env:
-          DJANGO_SETTINGS_MODULE: attandance_app_mul.settings
+          DJANGO_SETTINGS_MODULE: attandance_app_py.settings
           SECRET_KEY: test-secret-key-for-ci
           DEBUG: 'False'
           ALLOWED_HOSTS: 'localhost,127.0.0.1'
@@ -71,7 +71,7 @@ jobs:
 
       - name: Collect static files
         env:
-          DJANGO_SETTINGS_MODULE: attandance_app_mul.settings
+          DJANGO_SETTINGS_MODULE: attandance_app_py.settings
           SECRET_KEY: test-secret-key-for-ci
           DEBUG: 'False'
           ALLOWED_HOSTS: 'localhost,127.0.0.1'
@@ -82,7 +82,7 @@ jobs:
 
       - name: Run tests (if any exist)
         env:
-          DJANGO_SETTINGS_MODULE: attandance_app_mul.settings
+          DJANGO_SETTINGS_MODULE: attandance_app_py.settings
           SECRET_KEY: test-secret-key-for-ci
           DEBUG: 'False'
           ALLOWED_HOSTS: 'localhost,127.0.0.1'
